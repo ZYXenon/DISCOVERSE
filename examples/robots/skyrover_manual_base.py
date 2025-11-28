@@ -2,6 +2,7 @@ import mujoco
 import xml.etree.ElementTree as ET
 import glfw
 from discoverse.envs import SimulatorBase
+import os
 from discoverse.utils import BaseConfig
 
 class SkyRoverSoloBase(SimulatorBase):
@@ -12,11 +13,15 @@ class SkyRoverSoloBase(SimulatorBase):
         self.robots = {name: {"joints": {}, "bodies": {}, "sites": {}} for name in self.robot_names}    # robot attributes
         
         # 解析 XML 获取电机映射
-        self.actuator_mapping = self._parse_actuators_from_xml(self.mjcf_file)  # robot attributes
+        # self.actuator_mapping = self._parse_actuators_from_xml(self.mjcf_file)  # robot attributes
+        control_xml_path = os.path.join(os.path.dirname(self.mjcf_file), "skyrover/skyrover_control.xml")
+        self.actuator_mapping = self._parse_actuators_from_xml(control_xml_path)
 
         # 初始化机器人映射
         for robot_name in self.robot_names:
             self._initialize_robot(robot_name)
+
+        self.dt = self.mj_model.opt.timestep
 
         print("="*100)
         print("Robots initialized with the following mappings:", self.robots)
@@ -204,7 +209,7 @@ class SkyRoverSoloBase(SimulatorBase):
         actuator_mapping = {}
 
         # Iterate over motor actuators in XML
-        for i, motor in enumerate(root.findall(".//actuator/motor")):
+        for i, motor in enumerate(root.findall("motor")):
             site_name = motor.get("site")  # get the site linked to this actuator
             
             # Check if the site name is valid

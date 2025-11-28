@@ -12,14 +12,14 @@ class SkyRoverSoloCfg(BaseConfig):
     mjcf_file_path = "mjcf/skyrover_floor.xml"
     
     timestep       = 1/240 
-    decimation     = 4
+    decimation     = 10 # 4
     sync           = True
     headless       = False
     render_set     = {
         "fps"    : 60,
-        "width"  : 1920,
-        "height" : 1080,
-        "window_title": "SkyRover Solo Flight (WASD=Move, QE=Up/Down)"
+        "width"  : 640,
+        "height" : 480,
+        "window_title": "SkyRover Solo Flight"
     }
     
     obs_rgb_cam_id   = [-1] # 相机id列表，-1代表自由相机
@@ -81,11 +81,21 @@ if __name__ == "__main__":
 
     while exec_node.running:
         # --- 键盘输入更新目标位置 ---
-        if exec_node.key_state[glfw.KEY_W]: target_pos[0] += move_speed # 前
-        if exec_node.key_state[glfw.KEY_S]: target_pos[0] -= move_speed # 后
-        if exec_node.key_state[glfw.KEY_A]: target_pos[1] += move_speed # 左
-        if exec_node.key_state[glfw.KEY_D]: target_pos[1] -= move_speed # 右
-        if exec_node.key_state[glfw.KEY_Q]: target_pos[2] += move_speed # 上
+        if exec_node.key_state[glfw.KEY_W]: 
+            target_pos[0] += move_speed # 前
+            print("按下W键")
+        if exec_node.key_state[glfw.KEY_S]: 
+            target_pos[0] -= move_speed # 后
+            print("按下S键")
+        if exec_node.key_state[glfw.KEY_A]: 
+            target_pos[1] += move_speed # 左
+            print("按下A键")
+        if exec_node.key_state[glfw.KEY_D]: 
+            target_pos[1] -= move_speed # 右
+            print("按下D键")
+        if exec_node.key_state[glfw.KEY_Q]: 
+            target_pos[2] += move_speed # 上
+            print("按下Q键")
         if exec_node.key_state[glfw.KEY_E]: target_pos[2] -= move_speed # 下
         if target_pos[2] < 0.1: target_pos[2] = 0.1 # 地面限制
 
@@ -95,7 +105,7 @@ if __name__ == "__main__":
 
         # --- PID 计算 ---
         rpm, _, _ = flight_ctrl.compute_control_from_state(
-            control_timestep=exec_node.dt,
+            control_timestep=1/24,	# 原先是exec_node.dt
             state=state,
             target_pos=target_pos,
             target_rpy=np.array([0., 0., target_yaw]),
@@ -105,6 +115,16 @@ if __name__ == "__main__":
         
         # --- 缩放 RPM 并执行 ---
         scaled_rpm = cu.scale_rpm_array(rpm)
+
+        # print(f"当前高度: {pos[2]:.2f} | 目标高度: {target_pos[2]:.2f} | 推力RPM: {scaled_rpm[0]:.1f}")
+        roll_deg = np.rad2deg(eul[0])
+        pitch_deg = np.rad2deg(eul[1])
+        yaw_deg = np.rad2deg(eul[2])
+
+        print(f"H(高度): {pos[2]:.3f}m | "
+                  f"姿态(RPY): [{roll_deg:.1f}, {pitch_deg:.1f}, {yaw_deg:.1f}]° | "
+                  f"电机(FL/BL/BR/FR): [{scaled_rpm[0]:.1f}, {scaled_rpm[1]:.1f}, {scaled_rpm[2]:.1f}, {scaled_rpm[3]:.1f}]")
+
         exec_node.skyrover_fly(scaled_rpm)
 
         # --- 仿真步进 ---

@@ -233,6 +233,8 @@ class SimulatorBase:
         # self.mj_model.vis.quality.shadowsize = 4096 * 8
         self.mj_data = mujoco.MjData(self.mj_model)
         if self.config.enable_render:
+            screen_width, screen_height = 1920, 1080
+
             for i in range(self.mj_model.ncam):
                 self.camera_names.append(self.mj_model.camera(i).name)
 
@@ -257,10 +259,12 @@ class SimulatorBase:
             try:
                 import screeninfo
                 monitors = screeninfo.get_monitors()
-                for m in monitors:
-                    if m.is_primary:
-                        screen_width, screen_height = m.width, m.height
-                        break
+                if monitors:
+                    primary = None
+                    for m in monitors:
+                        if m.is_primary:
+                            screen_width, screen_height = m.width, m.height
+                            break
             except Exception as e:
                 screen_width, screen_height = 1920, 1080
                 print(f"screeninfo error: {e}, using default screen size: {screen_width}x{screen_height}")
