@@ -10,7 +10,7 @@ class SkyRoverSoloBase(SimulatorBase):
         super().__init__(config)
 
         self.robot_names = ["skyrover"] # 仅包含无人机
-        self.robots = {name: {"joints": {}, "bodies": {}, "sites": {}} for name in self.robot_names}    # robot attributes
+        self.robots = {name: {"joints": {}, "bodies": {}, "sites": {}} for name in self.robot_names}    
         
         # 解析 XML 获取电机映射
         # self.actuator_mapping = self._parse_actuators_from_xml(self.mjcf_file)  # robot attributes
@@ -33,12 +33,39 @@ class SkyRoverSoloBase(SimulatorBase):
         self.set_joint_position("skyrover", "skyrover_folder1_joint", 2.5e-4)
         self.set_joint_position("skyrover", "skyrover_folder2_joint", 2.5e-4)
         
-        # 键盘状态字典
         self.key_state = {
             glfw.KEY_W: False, glfw.KEY_S: False,
             glfw.KEY_A: False, glfw.KEY_D: False,
             glfw.KEY_Q: False, glfw.KEY_E: False
         }
+
+    # 重置无人机位姿的方法
+    def reset_pose(self, pos, quat=None):
+        """
+        强制设置无人机(skyrover)的位置和姿态
+        pos: [x, y, z]
+        quat: [w, x, y, z] (可选)
+        """
+        if "skyrover" in self.free_body_qpos_ids:
+            q_idx = self.free_body_qpos_ids["skyrover"]
+            
+            # 设置位置
+            self.mj_data.qpos[q_idx:q_idx+3] = pos
+            
+            # 设置姿态 (默认为单位四元数)
+            if quat is not None:
+                self.mj_data.qpos[q_idx+3:q_idx+7] = quat
+            else:
+                self.mj_data.qpos[q_idx+3:q_idx+7] = [1.0, 0.0, 0.0, 0.0]
+            
+            # 重置速度为0
+            v_idx = self.mj_model.jnt_dofadr[self.mj_model.jnt_qposadr[q_idx]]
+            self.mj_data.qvel[v_idx:v_idx+6] = 0.0
+            
+            # 刷新物理状态
+            mujoco.mj_forward(self.mj_model, self.mj_data)
+        else:
+            print("[ERROR] Cannot find 'skyrover' free joint to reset pose.")
 
     def on_key(self, window, key, scancode, action, mods):
         # 键盘控制
@@ -93,8 +120,6 @@ class SkyRoverSoloBase(SimulatorBase):
         eul = rotation.as_euler('ZYX', degrees=False)[::-1]
         return pos, vel, quat, pqr, eul
 
-    # --- 辅助方法 ---
-
     def set_joint_position(self, robot_name, joint_name, position):
         """
         设置机器人特定关节的位置。
@@ -102,28 +127,22 @@ class SkyRoverSoloBase(SimulatorBase):
         注意：由于切换了 XML 文件 (skyrover_floor.xml)，ctrl 的索引顺序发生了变化。
         此处的索引是根据 skyrover_control.xml 的 motor 定义顺序重新映射的。
         """
-        if self._sanity_check(robot_name=robot_name,
-                              attribute_name=joint_name,
-                              type="joints"):
+        if self._sanity_check(robot_name=robot_name, attribute_name=joint_name, type="joints"):
             if robot_name == "skyrover":
-                
-                # 伸缩与折叠关节 (索引与旧版一致)
                 if joint_name == "skyrover_stretch_joint":
                     self.mj_data.ctrl[0] = position
                 elif joint_name == "skyrover_folder1_joint":
                     self.mj_data.ctrl[1] = position
                 elif joint_name == "skyrover_folder2_joint":
                     self.mj_data.ctrl[6] = position
-                    
-                # 旋翼关节 (Rotors) - 索引已修正
                 elif joint_name == "skyrover_rotor1_joint":
-                    self.mj_data.ctrl[10] = position  # 旧版是 2，新 XML 是 10
+                    self.mj_data.ctrl[10] = position
                 elif joint_name == "skyrover_rotor2_joint":
-                    self.mj_data.ctrl[4] = position   # 旧版是 3，新 XML 是 4
+                    self.mj_data.ctrl[4] = position
                 elif joint_name == "skyrover_rotor3_joint":
-                    self.mj_data.ctrl[9] = position   # 旧版是 7，新 XML 是 9
+                    self.mj_data.ctrl[9] = position
                 elif joint_name == "skyrover_rotor4_joint":
-                    self.mj_data.ctrl[5] = position   # 旧版是 8，新 XML 是 5
+                    self.mj_data.ctrl[5] = position
         else:
             print(f"[ERROR] Sanity check failed for robot '{robot_name}' and attribute '{joint_name}'. Check that the attribute exists and the robot is initialized properly.")
 
@@ -189,6 +208,7 @@ class SkyRoverSoloBase(SimulatorBase):
         # Check if the attribute exists in the robot
         if type not in ["joints", "sites"]:
             raise TypeError("[ERROR] Such attribute type does not exist!")
+        
         else:
             if attribute_name not in self.robots[robot_name][type]:
                 print(f"[ERROR] Site {attribute_name} not found for robot {robot_name}.")
@@ -205,24 +225,21 @@ class SkyRoverSoloBase(SimulatorBase):
         """
         tree = ET.parse(xml_file)
         root = tree.getroot()
-        
-        actuator_mapping = {}
 
+        actuator_mapping = {}
+        
         # Iterate over motor actuators in XML
-        for i, motor in enumerate(root.findall("motor")):
-            site_name = motor.get("site")  # get the site linked to this actuator
+        for i, motor in enumerate(root.findall("motor")): # get the site linked to this actuator
+            site_name = motor.get("site")
             
             # Check if the site name is valid
-            if site_name:
-                actuator_mapping[site_name] = i  # Map site name to index
-
-        # print("Manual mapping between actuators and sites: ", actuator_mapping) # Debugging line
+            if site_name: actuator_mapping[site_name] = i   # Map site name to index
+            
         return actuator_mapping
 
     def _get_joint_id_from_body_id(self, body_id, qpos_qvel_flag):
         joint_addr_map = {"qpos": self.mj_model.jnt_qposadr, "qvel": self.mj_model.jnt_dofadr}
         joint_addr = joint_addr_map[qpos_qvel_flag]
         for j_id, b_id in enumerate(self.mj_model.jnt_bodyid):
-            if b_id == body_id:
-                return joint_addr[j_id]
+            if b_id == body_id: return joint_addr[j_id]
         return None

@@ -6,6 +6,7 @@
 
     <!-- Base link -->
     <body name="skyrover_base_link">
+      <camera name="fpv_camera" mode="fixed" pos="0.1 0 0.05" xyaxes="0 -1 0 0 0 1" fovy="90"/>
       <geom class="skyrover_mesh" mesh="base_link" pos="-0.062 0.17 0.03" euler="0 0 -90" mass="0.5"/>
       <geom class="skyrover_mesh" mesh="cover" pos="0 0 0.08" euler="0 0 -90" density="0"/>
       <joint name="skyrover_stretch_joint" type="slide" pos="-0.062 0.17 0.03" axis="0 0 1" range="-0.1 0" damping="0.5" limited="true" actuatorfrcrange="-545 0"/>
