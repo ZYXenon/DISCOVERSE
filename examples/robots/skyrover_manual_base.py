@@ -36,7 +36,8 @@ class SkyRoverSoloBase(SimulatorBase):
         self.key_state = {
             glfw.KEY_W: False, glfw.KEY_S: False,
             glfw.KEY_A: False, glfw.KEY_D: False,
-            glfw.KEY_Q: False, glfw.KEY_E: False
+            glfw.KEY_Q: False, glfw.KEY_E: False,
+            glfw.KEY_J: False, glfw.KEY_L: False
         }
 
     # 重置无人机位姿的方法

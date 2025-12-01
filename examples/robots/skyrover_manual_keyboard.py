@@ -22,7 +22,7 @@ class SkyRoverSoloCfg(BaseConfig):
         "fps"    : 60,
         "width"  : 640,
         "height" : 480,
-        "window_title": "SkyRover Solo Flight - Feicuiwan Fixed"
+        "window_title": "SkyRover Solo Flight"
     }
     
     obs_rgb_cam_id   = [-1] # 相机id列表，-1代表自由相机
@@ -57,7 +57,7 @@ class SkyRoverSoloCfg(BaseConfig):
 def fix_scene_orientation(sim):
     """
     修复场景方向：绕 X 轴旋转 180 度。
-    解决场景倒置和位于地下 (Z < 0) 的问题。
+    解决场景倒置的问题。
     """
     print("Applying 180-degree rotation to 3DGS scene...")
     try:
@@ -104,7 +104,8 @@ if __name__ == "__main__":
     exec_node.reset_pose(SCENE_CENTER)
 
     flight_ctrl = PIDControl()
-    move_speed = 0.05
+    move_speed = 0.1
+    yaw_speed = 0.05    # 转向速度
     
     # 获取初始状态并设置控制目标
     init_pos, _, _, _, _ = exec_node.get_skyrover_state()
@@ -133,6 +134,12 @@ if __name__ == "__main__":
         if exec_node.key_state[glfw.KEY_E]: 
             target_pos[2] -= move_speed # 下
             print("按下E键")
+        if exec_node.key_state[glfw.KEY_J]:
+            target_yaw += yaw_speed
+            print("按下J键 (左转)")
+        if exec_node.key_state[glfw.KEY_L]:
+            target_yaw -= yaw_speed
+            print("按下L键 (右转)")
         # 最低高度限制，防止穿地太深 (放宽限制)
         if target_pos[2] < -2.0: target_pos[2] = -2.0 
 
